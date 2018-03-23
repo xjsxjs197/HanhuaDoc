@@ -1,0 +1,24 @@
+2.1.2.10 Direct Memory Access (DMA) Registers
+  The pair of DMA registers, DMAU and DMAL, is used to specify and issue a DMA command. 
+A DMA command specifies the transfer of a contiguous block of data, up to 4 KB, 
+between the locked cache and external memory. 
+Each DMA command consists of the starting address in locked cache, 
+the starting address in external memory, 
+the length of the transfer in cache lines, and the direction of the transfer.
+
+  The DMA facility is enabled using the HID2[LCE] bit. 
+When HID2[LCE] = 0, the mtspr and mfspr instructions can be used to read and write the DMA registers, 
+but the DMA commands associated with these registers are ignored. 
+In particular, the DMA_T and DMA_F bits in DMAL are always forced to zero in this mode. 
+When HID2[LCE] = 1, a mtspr to DMAL with the DMA_F bit = 1 causes the DMA command queue to be flushed, 
+otherwise a mtspr DMAL with the DMA_T bit = 1 causes the DMA command specified in the DMA registers to be added to the DMA command queue.
+
+  Figure 2-16 and Figure 2-17 show the format of the upper and lower DMA registers.
+
+Figure 2-16. Direct Memory Access Upper (DMAU) register
+
+======================================================================
+|                                           |                         | 
+|          MEM_ADDR                         |   DMA_LEN_U             |
+|                                           |                         |
+======================================================================
