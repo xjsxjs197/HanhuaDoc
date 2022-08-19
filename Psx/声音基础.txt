@@ -1,0 +1,21 @@
+https://blog.csdn.net/byxdaz/article/details/80703970
+
+一、基础
+采样（sample）
+采样位数（采样精度） 16位
+采样率（sample rate）11khz、22khz、44khz、48khz
+通道数（channel） 单声道mono；立体声stereo
+
+比特率（bitrate）单位kbps
+比特率 = 采样率 x 采样精度 x 声道数
+
+三、音频的编解码
+通常也把音频采样过程叫脉冲编码调制编码，即PCM（Pulse Code Modulation）编码，采样值也叫PCM值。
+为了节省保存空间或者发送流量，会对PCM值压缩
+
+====================================================
+SPU
+一个Block数据包括14个压缩的数据+2个字节的Header（Loop、End信息），
+解压后变为28个Sample数据；
+
+16位采样、采样率：44.1khz
