@@ -22,3 +22,55 @@ Figure 2-16. Direct Memory Access Upper (DMAU) register
 |          MEM_ADDR                         |   DMA_LEN_U             |
 |                                           |                         |
 ======================================================================
+
+9.2 Locked L1 Data Cache 
+Under the control of the HID2[LCE] bit, the L1 data cache can be configured as either a 32-KB normal cache, 
+or as a 16-KB normal cache and a 16kKB locked cache. The locked cache can be explicitly managed, separate from the normal cache. A new instruction, dcbz_l, is used to allocate cache lines in the locked cache.
+
+9.2.1 Locked Cache Configuration
+At power-on or reset, HID2[LCE] is set to be 0. The L1 data cache is a 32-KB 8-way set-associated cache, as 
+described in Chapter 3. When a mtspr instruction sets HID2[LCE] = 1, the data cache is configured as two 
+partitions. The first partition, consisting of ways 0-3, is a 16-KB normal cache. The second partition, 
+consisting of ways 4-7, is a 16-KB locked cache. The normal cache operates as described in Chapter 3, 
+except that it behaves as a four-way set-associative cache. The operation of the locked cache partition is 
+described in the following sections
+
+9.3 Direct Memory Access (DMA)
+750CL implements a DMA engine to transfer data between the locked L1 D-cache and the external memory. 
+The DMA engine has a 15-entry FIFO queue for DMA commands and processes the commands sequentially. 
+The DMA engine’s operation is controlled by the two special purpose registers: DMAU and DMAL.
+
+9.3.1 DMA Operation
+The DMA engine is disabled at power-on with HID2[LCE] = 0. Setting HID2[LCE] = 1 partitions the L1 Dcache and enables the DMA engine. Note that after HID2[LCE] is set to 1, the i-cache must be invalidated 
+prior to executing any dcbz_l instructions. Also, for systems which generate snoop transactions, HID2[LCE] 
+shall be kept at 0.
+When a mtspr instruction sets DMAL[T] = 1 and DMAL[F] = 0, the DMA engine latches the values in DMAU 
+and DMAL to form a DMA command, enqueues the command in the DMA queue and sets DMAL[T] = 0. 
+HID2[DMAQL] indicates the number of DMA commands in the DMA queue, including the command in 
+progress (if any).
+When the DMA queue is not empty, i.e., HID2[DMAQL] ≠ 0, the DMA engine processes the commands 
+sequentially. The starting address of the transfer in the D-cache is DMAL[LC_ADDR] || 0b00000. The starting 
+address of the transfer in the external memory is DMAU[MEM_ADDR] || 0b00000. The number of cache lines 
+to be transferred by a command is DMAU[DMA_LEN_U] || DMAL[DMA_LEN_L], except that a value of zero 
+specifies a length of 128 cache lines. The direction of the transfer is determined by DMAL[LD]. DMAL[LD] = 0 
+means a transfer from the locked cache to the external memory. DMAL[LD] = 1 means a transfer from the 
+external memory to the locked cache
+
+For a DMA store command, i.e., DMAL[LD] = 0, the DMA engine performs a D-cache look-up for each of the 
+cache lines sequentially from the starting address. For a look-up hit in the locked cache, the DMA engine 
+initiates a 60x bus write-with-flush transaction to transfer the 32 byte cache line from the locked cache to the 
+external memory. 
+For a DMA load command, i.e., DMAL[LD] = 1, the DMA engine performs a D-cache look-up for each of the 
+cache lines sequentially from the starting address. For a look-up hit in the locked cache, the DMA engine 
+initiates a 60x bus burst read transaction to transfer the data from the external memory to the locked cache. 
+For all but the last read transaction associated with the DMA load command, the burst read transaction type 
+is 0b01011. The last burst read transaction has a transaction type of 0b01010. 750CL initiates the burst transaction type 0b01011 only for the DMA load commands. The memory controller can use the information to prefetch the next cache line to improve the performance.
+The DMA access to the cache, either a load or a store, will result in a pseudo-LRU state transition within the 
+four-way set associated with the cache line, but does not affect the MEI state. If the look-up misses the locked 
+cache, the DMA engine transfers no data and continues to the next cache line. 
+The eieio and sync instructions have no effect on the DMA engine. 
+The only way to flush the DMA queue is to issue a mtspr instruction to set DMAL[F] = 1. In this situation, the 
+DMA engine flushes all the commands in the DMA queue, including the command in progress, and sets both 
+DMAL[F] = DMAL[T] = 0. Such an instruction should be followed by a sync instruction to ensure that the 
+pending bus transaction associated with the discarded command, if any, complete before the DMA engine 
+accepts the next DMA command

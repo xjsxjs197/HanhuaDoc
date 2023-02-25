@@ -1,0 +1,81 @@
+Processors:
+
+	CPU: IBM "Broadway" PowerPC clocked at 729MHz.
+	     NEC "Starlet" ARM9 clocked at 243MHz (handles I/O and security).
+	GPU: ATI "Hollywood" GPU clocked at 243MHz.
+
+	Notes:
+
+	- PowerPC based processors are generally big-endian which means that you'll have to reverse the byte order of
+	  little-endian words (such as shorts and ints) when loading files created on little-endian systems (such as
+	  your PC). The Wii version of the MTek-GDL library has a gdl::wii::RevBytes() function to simplify switching
+	  byte orders when reading binary files created on your PC.
+
+	- The "Starlet" ARM9 processor cannot be accessed through the "Broadway" PowerPC processor which means you
+	  cannot use it to run custom code easily. Since it also handles system IOSs for things such as communication
+	  with the Wiimotes, it should not be touched and is also the reason why the IOS heap in MEM2 should not be
+	  touched as you might end up ruining an active heap area.
+	
+	
+Memory:
+
+	VRAM: 3MB embedded GPU memory for 'embedded' framebuffers and vertex/texture cache.
+	MEM1: 24MB 1T-SRAM "internal" memory integrated into GPU package (with access speed of 4.0Gb/s).
+	MEM2: 64MB GDDR3 "external" memory (with access speed of 3.9Gb/s).
+
+	Notes:
+
+	- Program code and data starts at address 0x80003F00 to 0x817FEC60 (23.97MB usable) in MEM1.
+
+	- Because of how loaders work, the DOL program must be less than 19.2MB in size as the loader program resides
+	  in 0x81330000 and can't be overwritten while the loader is still running. Once the loaded program has been
+	  executed, it can overwrite the loader safely with data it loads or generates.
+
+	- MEM2 is addressed at 0x90000000 to 0x933E0000 (51.8MB usable, remaining space reserved for IOS heap and
+	  should not be touched for safety reasons).
+
+	- If MEM1 becomes full with the default libogc library, the new allocated block will reside in MEM2 instead.
+	  However, new memory blocks will not be allocated within the remaining space of MEM1 unless everything
+	  addressed to MEM2 has been freed. Using the patched libogc library included in MTek-GDL Release 2.5 and
+	  onwards prevents memory allocation routines from jumping into MEM2.
+	  
+	- The best way to handle memory on the Nintendo Wii is to use the patched libogc library included with the
+	  MTek-GDL package which disables memory allocation routines from jumping into MEM2 and use malloc2() for
+	  allocating data in MEM2. Its recommended to store all texture and geometry data inside MEM1 as it is tied
+	  directly to the GX while other large data can be stored inside MEM2 for best performance and memory savings.
+
+
+Storage:
+
+	Internal Storage: 512MB NAND flash memory (this is where System Menu, saved games and channels are stored).
+	External Storage: SD/SDHC card slot supporting cards of up to 32GB in FAT or FAT32 file systems.
+	Optical Drive:	  Slot loading DVD drive supporting 8cm (Gamecube) discs and 12cm (Wii) DVD discs.
+
+	Notes:
+
+	- Even though access to the 512MB internal flash memory is entirely possible, it is highly not recommended
+	  as there is the possibility that you might corrupt the console's internal memory. Not only that, generating
+	  proper save files for the System Menu is a pain and can has the tendency of bricking the console so its not
+	  worth the effort.
+
+	- SD/SDHC access speeds can be up to 10MB/s depending on card's class (writes might be slower than reads).
+
+	- Only older Wiis can accept non-Wii DVDs. Later or refurbished Wiis and the cost reduced 'Family Edition'
+	  Wiis on the other hand only accepts Gamecube and Wii discs.
+
+	- Homebrew games/applications and files can be loaded/accessed from either SD card or USB drives.
+
+
+Network/Communication:
+
+	Ethernet:  Optional USB Ethernet adapter.
+	WiFi:	   Mitsumi DWM-W004 802.11b/g WiFi adapter.
+	Bluetooth: BroadCom BCM2045 Bluetooth adapter (compatible with standard Bluetooth HCI commands over USB).
+	
+	Notes:
+
+	- The best way to initialize network with compatibility with the Ethernet adapter is to initialize it just
+	  before fatInitDefault() and all other USB related init functions. (not confirmed yet)
+
+	- It is theoritically possible to use the BroadCom Bluetooth adapter to connect to other Bluetooth devices
+	  besides the Wiimote. Heck, Nintendont can connect to some Bluetooth controllers wirelessly.
